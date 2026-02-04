@@ -1,3 +1,4 @@
+using CSE325App.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace CSE325App.Data;
@@ -13,4 +14,11 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
     }
-}
+
+       public DbSet<TodoTask> Tasks { get; set; }
+    
+    }
+
+
+
+

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using CSE325App.Components;
 using CSE325App.Data;
+using CSE325App.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,12 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
     ?? "Data Source=cse325app.db";
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
+
+// here is our app services rigestered for dependency injection
+builder.Services.AddScoped<ITodoServices, TodoService>();
+
+
+
 
 var app = builder.Build();
 
