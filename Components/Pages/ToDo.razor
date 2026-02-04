@@ -1,0 +1,352 @@
+@* @page "/todo"
+@rendermode InteractiveServer
+@using CSE325App.Models
+@inject ITodoServices TodoService
+@inject IJSRuntime JS
+
+<PageTitle>ToDo</PageTitle>
+
+<h3>ToDo</h3>
+
+<div class="mb-3">
+    <input class="form-control"
+           placeholder="Search tasks..."
+           @bind="searchTerm"
+           @bind:event="oninput" />
+
+    <select class="form-select mt-2"
+            @bind="selectedStatus">
+        <option value="">All Statuses</option>
+        <option value="Open">Open</option>
+        <option value="InProgress">In Progress</option>
+        <option value="Completed">Completed</option>
+    </select>
+
+    <button class="btn btn-primary mt-2"
+            @onclick="ApplyFilters">
+        Apply Filters
+    </button>
+</div>
+
+@if (isLoading)
+{
+    <p>Loading tasks...</p>
+}
+else if (!filteredTasks.Any())
+{
+    <p>No tasks found.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Task Name</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Due Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var task in filteredTasks)
+            {
+                <tr>
+                    <td>@task.TaskName</td>
+                    <td>@task.Description</td>
+                    <td>@task.Status</td>
+                    <td>@task.DueDate.ToShortDateString()</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+
+    private List<TodoTask> allTasks = new();
+    private List<TodoTask> filteredTasks = new();
+    private string searchTerm = string.Empty;
+    private string selectedStatus = string.Empty;
+    private bool isLoading;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTasksAsync();
+    }
+
+    private async Task LoadTasksAsync()
+    {
+        isLoading = true;
+
+        try
+        {
+            allTasks = await TodoService.GetAllTasks();
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading tasks: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        IEnumerable<TodoTask> query = allTasks;
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            query = query.Where(t =>
+                t.TaskName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                t.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (Enum.TryParse<CSE325App.Models.TaskStatus>(selectedStatus, out var status))
+        {
+            query = query.Where(t => t.Status == status);
+        }
+
+        filteredTasks = query.ToList();
+    }
+
+
+    private Task ClearSearch()
+    {
+        searchTerm = string.Empty;
+        return searchTask();
+
+    }
+
+    private async Task OnStatusFilterChanged(ChangeEventArgs e)
+    {
+        selectedStatus = e.Value?.ToString() ?? string.Empty;
+        await filteredTasksk();
+
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await searchTask();
+        }
+    }
+
+    private void NvaigateToAddTask()
+    {
+        // Navigation logic to AddTask page
+        Navigation.NavigateTo("/add-task");
+    }
+
+    private void EditTask(int id)
+    {
+        // Navigation logic to EditTask page
+        Navigation.NavigateTo($"/add-task/{id}");
+    }
+
+    private async Task DeleteTask(int id)
+    {
+      var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this task?");
+      if (confirmed)
+      {
+          var deleted = await TodoService.DeleteTaskAsync(id);
+          if(deleted)
+          {
+             await LoadTasksAsync(); 
+            }   
+      }
+
+
+
+    }
+
+
+} *@
+
+
+
+@page "/todo"
+@rendermode InteractiveServer
+@using CSE325App.Models
+@inject ITodoServices TodoService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<PageTitle>ToDo</PageTitle>
+
+<h3>ToDo</h3>
+
+<div class="mb-3">
+    <input class="form-control"
+           placeholder="Search tasks..."
+           value="@searchTerm"
+           @oninput="OnSearchInput" />
+
+    <select class="form-select mt-2"
+            @onchange="OnStatusChanged">
+        <option value="">All Statuses</option>
+        <option value="Open">Open</option>
+        <option value="InProgress">In Progress</option>
+        <option value="Completed">Completed</option>
+    </select>
+
+    <div class="mt-2">
+        <button class="btn btn-secondary me-2" @onclick="ClearSearch">
+            Clear
+        </button>
+
+        <button class="btn btn-success" @onclick="NavigateToAddTask">
+            + Add Task
+        </button>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <p>Loading tasks...</p>
+}
+else if (!filteredTasks.Any())
+{
+    <p>No tasks found.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Task Name</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Due Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var task in filteredTasks)
+            {
+                <tr>
+                    <td>@task.TaskName</td>
+                    <td>@task.Description</td>
+                    <td>@task.Status</td>
+                    <td>@task.DueDate.ToShortDateString()</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-1"
+                                @onclick="() => EditTask(task.Id)">
+                            Edit
+                        </button>
+                        <button class="btn btn-sm btn-danger"
+                                @onclick="() => DeleteTask(task.Id)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+
+
+@code {
+
+    private List<TodoTask> allTasks = new();
+    private List<TodoTask> filteredTasks = new();
+
+    private string searchTerm = string.Empty;
+    private string selectedStatus = string.Empty;
+    private bool isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTasksAsync();
+    }
+
+    private async Task LoadTasksAsync()
+    {
+        isLoading = true;
+
+        try
+        {
+            allTasks = await TodoService.GetAllTasks();
+            filteredTasks = allTasks;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // 🔍 SEARCH AS YOU TYPE
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredTasks = allTasks;
+            ApplyStatusFilter();
+            return;
+        }
+
+        filteredTasks = await TodoService.SearchTaskAsync(searchTerm);
+        ApplyStatusFilter();
+    }
+
+    private void ApplyStatusFilter()
+    {
+        if (!string.IsNullOrWhiteSpace(selectedStatus) &&            
+         Enum.TryParse<CSE325App.Models.TaskStatus>(selectedStatus, out var status))   
+        {
+            filteredTasks = filteredTasks
+                .Where(t => t.Status == status)
+                .ToList();
+        }
+    }
+
+    private void OnStatusChanged(ChangeEventArgs e)
+    {
+        selectedStatus = e.Value?.ToString() ?? string.Empty;
+        ApplyStatusFilter();
+    }
+
+    private void ClearSearch()
+    {
+        searchTerm = string.Empty;
+        selectedStatus = string.Empty;
+        filteredTasks = allTasks;
+    }
+
+    private void NavigateToAddTask()
+    {
+        Navigation.NavigateTo("/add-task");
+    }
+
+    private void EditTask(int id)
+    {
+        Navigation.NavigateTo($"/add-task/{id}");
+    }
+
+    private async Task DeleteTask(int id)
+    {
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            "Are you sure you want to delete this task?"
+        );
+
+        if (confirmed)
+        {
+            var deleted = await TodoService.DeleteTaskAsync(id);
+            if (deleted)
+            {
+                await LoadTasksAsync();
+            }
+        }
+    }
+}
+
+
+
+
+
